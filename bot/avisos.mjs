@@ -238,7 +238,9 @@ async function principal(){
     await new Promise(r => setTimeout(r, 1000));               // folga pro rate limit
   }
   if(!SECO) fs.writeFileSync(ARQ_ESTADO, JSON.stringify(estado, null, 2) + '\n');
-  console.log(enviados + ' de ' + fila.length + ' aviso(s) enviados.');
+  console.log(SECO
+    ? '[dry-run] ' + fila.length + ' aviso(s) SERIAM enviados. Nada foi enviado de verdade.'
+    : enviados + ' de ' + fila.length + ' aviso(s) enviados.');
 }
 
 principal().catch(e => { console.error(e); process.exit(1); });
