@@ -1,0 +1,48 @@
+name: Avisos no Telegram
+
+on:
+  schedule:
+    # 12:00 UTC = 09:00 em Brasília. O GitHub pode atrasar alguns minutos
+    # em horários cheios; pra agenda de corrida isso não faz diferença.
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Só mostrar o que seria enviado (não envia nada)'
+        type: boolean
+        default: true
+
+# Necessário pro passo que commita bot/estado.json de volta
+permissions:
+  contents: write
+
+# Se duas execuções se cruzarem, a segunda espera — senão as duas mexem no
+# estado.json ao mesmo tempo e uma sobrescreve a outra.
+concurrency:
+  group: avisos-telegram
+  cancel-in-progress: false
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enviar avisos
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PAGINA_URL: https://rafael-peters.github.io/Bora-correr/
+        run: node bot/avisos.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Registrar o que já foi avisado
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bot/estado.json
+          git diff --staged --quiet || (git commit -m "Registra avisos enviados [skip ci]" && git push)

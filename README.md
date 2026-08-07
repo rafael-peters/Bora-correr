@@ -158,16 +158,58 @@ O prazo também aparece no destaque da próxima largada, no topo da página.
 | Distância **sem etiqueta** no card | Texto sem número + "k/km" (ex.: só "corrida leve") | Escreva como `5k`, `10 km`, `21k`… |
 | **Data limite** não aparece | Campo em branco na planilha, ou o CSV ainda não foi republicado com a coluna nova | Confira a linha na planilha; se acabou de acrescentar a pergunta no Form, espere ~5 min e recarregue com `Ctrl+Shift+R` |
 
-## 📲 Próxima etapa: avisos no Telegram
+## 📲 Avisos no Telegram
 
-O formulário já pergunta quem quer receber aviso e em quais situações (corrida nova, prazo de inscrição fechando, véspera da prova) e guarda o número do Telegram. **A página não usa nada disso** — ela ignora essas colunas de propósito. O que falta é o bot que lê a planilha e dispara as mensagens.
+O bot já está pronto (`bot/avisos.mjs` + `.github/workflows/avisos-telegram.yml`). Ele roda **de graça** pelo GitHub Actions uma vez por dia, lê a mesma planilha que a página lê, e posta **no grupo do Telegram** quando:
 
-Dá pra fazer **de graça**, com GitHub Actions neste mesmo repositório, sem servidor. Mas duas coisas precisam ser resolvidas antes:
+- entra corrida nova no calendário
+- faltam 3 dias, 1 dia, e no último dia de inscrição
+- é véspera da prova
 
-1. **Onde os números ficam.** Enquanto a aba com os números estiver "publicada na web", eles são públicos. Resolva a publicação como descrito no Passo 4 antes de coletar números de mais gente.
-2. **O token do bot** não pode ficar no código — vai em *Settings → Secrets and variables → Actions* do repositório.
+> ⚠️ **Por que no grupo e não no privado de cada um?** Bots do Telegram **não conseguem** mandar mensagem pra alguém pelo número de telefone, nem iniciar conversa — a pessoa teria que abrir o bot e mandar `/start` antes. O campo "meu número do Telegram" do formulário, portanto, não serve pra enviar nada. Postando no grupo, todo mundo recebe e não é preciso guardar dado pessoal nenhum. Se quiser, pode até remover essa pergunta do Form.
 
-A página, por enquanto, só convida: tem um bloco "📲 Avisos no Telegram" no rodapé apontando pro formulário.
+### Passo 1 — Criar o bot
+
+No Telegram, converse com o [@BotFather](https://t.me/BotFather): mande `/newbot`, escolha um nome e um usuário terminado em `bot`. Ele devolve um **token** parecido com `8123456789:AAH...`. Guarde.
+
+### Passo 2 — Colocar o bot no grupo e descobrir o `chat_id`
+
+1. Adicione o bot ao grupo da turma
+2. Mande no grupo a mensagem `/start@seu_bot` (com o `@` do bot — em grupo, o bot só enxerga mensagens dirigidas a ele)
+3. Abra no navegador, trocando `SEU_TOKEN`:
+
+   ```
+   https://api.telegram.org/botSEU_TOKEN/getUpdates
+   ```
+
+4. Procure por `"chat":{"id":-1001234567890`. Esse número **com o sinal de menos** é o `chat_id` do grupo
+
+### Passo 3 — Guardar os dois valores como *secrets*
+
+No repositório: **Settings → Secrets and variables → Actions → New repository secret**. Crie dois:
+
+| Nome | Valor |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | o token do BotFather |
+| `TELEGRAM_CHAT_ID` | o número do grupo (com o `-`) |
+
+> 🔒 Nunca coloque o token no código. Quem tiver o token controla o bot.
+
+### Passo 4 — Testar
+
+Na aba **Actions** do repositório, escolha **Avisos no Telegram → Run workflow**. Deixe *dry run* marcado na primeira vez: ele mostra no log o que **seria** enviado, sem enviar nada. Conferido, rode de novo com *dry run* desmarcado.
+
+A **primeira execução de verdade** não envia nada de propósito: ela marca as corridas que já estão na planilha como "conhecidas" e cria o `bot/estado.json`. Sem isso, o grupo levaria uma enxurrada anunciando o calendário inteiro de uma vez. Dali em diante, só o que for novidade vira mensagem.
+
+### Como funciona por dentro
+
+O `bot/estado.json` guarda o que já foi avisado e é commitado de volta pelo próprio Actions — é ele que impede o bot de repetir a mesma mensagem todo dia. **Não apague esse arquivo**, ou o bot vai reanunciar tudo.
+
+O horário está em `.github/workflows/avisos-telegram.yml`, na linha `cron: '0 12 * * *'` — 12:00 UTC, ou 09:00 em Brasília. O cron do GitHub sempre usa UTC.
+
+O bot lê o link da planilha do próprio `index.html`, então nunca acontece de a página apontar pra uma planilha e o bot pra outra.
+
+Pra testar na sua máquina, sem enviar nada: `node bot/avisos.mjs --dry-run`
 
 ---
 
