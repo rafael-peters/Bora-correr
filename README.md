@@ -184,6 +184,8 @@ No Telegram, converse com o [@BotFather](https://t.me/BotFather): mande `/newbot
 
 4. Procure por `"chat":{"id":-1001234567890`. Esse número **com o sinal de menos** é o `chat_id` do grupo
 
+> O valor do secret é **só o número**, nada mais: `-1001234567890`. Sem aspas, sem prefixo, sem `id=`. Supergrupo começa com `-100`; grupo comum é um negativo mais curto. Se ficar positivo, você pegou o id da *sua* conta em vez do grupo.
+
 ### Passo 3 — Guardar os dois valores como *secrets*
 
 No repositório: **Settings → Secrets and variables → Actions → New repository secret**. Crie dois:
@@ -197,7 +199,15 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
 
 ### Passo 4 — Testar
 
-Na aba **Actions** do repositório, escolha **Avisos no Telegram → Run workflow**. Deixe *dry run* marcado na primeira vez: ele mostra no log o que **seria** enviado, sem enviar nada. Conferido, rode de novo com *dry run* desmarcado.
+Na aba **Actions** do repositório, escolha **Avisos no Telegram → Run workflow**. Há três modos:
+
+| Modo | O que faz | Quando usar |
+|---|---|---|
+| `teste` *(padrão)* | Manda **uma** mensagem no grupo dizendo que o bot conectou | Primeiro de todos: é o único que prova que token e `chat_id` estão certos |
+| `dry-run` | Mostra no log o que **seria** postado, sem postar | Pra conferir o texto dos avisos antes de soltar no grupo |
+| `valendo` | Comportamento normal, igual ao agendamento diário | Quando quiser adiantar a execução do dia |
+
+Comece pelo `teste`. Se a mensagem chegar no grupo, está tudo certo. Se o log disser `FALHOU`, o erro do Telegram aparece logo acima — `chat not found` é `chat_id` errado, `Unauthorized` é token errado.
 
 A **primeira execução de verdade** não envia nada de propósito: ela marca as corridas que já estão na planilha como "conhecidas" e cria o `bot/estado.json`. Sem isso, o grupo levaria uma enxurrada anunciando o calendário inteiro de uma vez. Dali em diante, só o que for novidade vira mensagem.
 
