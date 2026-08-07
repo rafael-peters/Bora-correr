@@ -45,6 +45,15 @@ Crie um formulário em [forms.google.com](https://forms.google.com) com estas pe
 | Link de inscrição | Resposta curta | Não |
 | Observações | Parágrafo | Não |
 
+Se quiser oferecer os avisos por Telegram, acrescente também estas duas — mas leia antes a nota de privacidade do Passo 4, porque elas guardam dado pessoal:
+
+| Pergunta | Tipo | Obrigatória? |
+|---|---|---|
+| Avisos pelo Telegram (marque as opções) | Caixas de seleção | Não |
+| Meu número do Telegram | Resposta curta | Não |
+
+A página **ignora** essas duas colunas de propósito: número de telefone nunca vai pra tela. Elas existem só pra alimentar o bot de avisos (veja o fim deste arquivo).
+
 Depois:
 
 1. Na aba **Respostas**, clique no ícone verde do Planilhas (**Vincular ao app Planilhas**) → *Criar nova planilha*
@@ -67,7 +76,17 @@ Na **planilha de respostas** criada no passo anterior:
 
 Guarde esse link (é o `URL_PLANILHA_CSV`).
 
-> 🔒 **Nota de privacidade:** "Publicar na web" deixa o conteúdo *dessa aba* visível pra quem tiver o link. Como aqui só tem agenda de corridas (nada pessoal), sem problema — mas não use essa planilha pra outras coisas do grupo.
+> 🔒 **LEIA ISTO — privacidade.** "Publicar na web" deixa **a aba inteira** legível pra qualquer pessoa com o link, e o link fica visível no código-fonte da página. Se o seu formulário coleta e-mail ou número de Telegram, **esses dados ficam públicos** — não adianta a página não exibi-los.
+>
+> A página só *lê* as colunas da corrida (veja `&range=C:I` no `CONFIG`), mas isso é conveniência, **não proteção**: basta tirar o `range` da URL pra ver tudo.
+>
+> **A proteção de verdade** é nunca publicar a aba que tem dados pessoais. Crie uma aba nova na planilha, ponha isto em `A1`:
+>
+> ```
+> =QUERY('Respostas ao formulário 1'!A:I; "select C,D,E,F,G,H,I"; 1)
+> ```
+>
+> Publique **essa** aba (e só ela) e use o link dela no `CONFIG`. Depois volte em *Arquivo → Compartilhar → Publicar na web* e **pare de publicar** a aba de respostas original. Se a sua planilha usar vírgula como separador de fórmula, troque os `;` por `,`.
 
 ## ✅ Passo 5 — Colar os dois links no CONFIG
 
@@ -79,9 +98,11 @@ Dá pra editar direto no navegador, sem instalar nada:
 4. Cole os links **entre as aspas**, sem apagar as vírgulas do fim das linhas:
 
    ```js
-   URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv',
+   URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv&range=C:I',
    URL_FORMULARIO: 'https://forms.gle/xxxxxxxx'
    ```
+
+   O `&range=C:I` no fim do link da planilha faz a página ler só as colunas da corrida (da coluna C até a I), pulando carimbo, e-mail e Telegram. Se um dia você acrescentar uma pergunta **sobre a corrida** no Form, ela entra *depois* das de Telegram — então amplie o range (ex.: `C:I` vira `C:K`), senão o campo novo não aparece.
 
 5. **Commit changes** → aguarde ~1 minuto → recarregue a página com `Ctrl+Shift+R` (recarga forçada, ignorando o cache)
 
@@ -126,9 +147,16 @@ O prazo também aparece no destaque da próxima largada, no topo da página.
 | Distância **sem etiqueta** no card | Texto sem número + "k/km" (ex.: só "corrida leve") | Escreva como `5k`, `10 km`, `21k`… |
 | **Data limite** não aparece | Campo em branco na planilha, ou o CSV ainda não foi republicado com a coluna nova | Confira a linha na planilha; se acabou de acrescentar a pergunta no Form, espere ~5 min e recarregue com `Ctrl+Shift+R` |
 
-## 📲 Próxima etapa (opcional): avisos no Telegram
+## 📲 Próxima etapa: avisos no Telegram
 
-Dá pra criar um bot **gratuito** que avisa no grupo, tipo toda quinta: *"📢 Corridas deste fim de semana: …"*, lendo esta mesma planilha e rodando de graça pelo GitHub Actions, **neste mesmo repositório** — sem servidor. Quando a página estiver rodando redonda, é a evolução natural.
+O formulário já pergunta quem quer receber aviso e em quais situações (corrida nova, prazo de inscrição fechando, véspera da prova) e guarda o número do Telegram. **A página não usa nada disso** — ela ignora essas colunas de propósito. O que falta é o bot que lê a planilha e dispara as mensagens.
+
+Dá pra fazer **de graça**, com GitHub Actions neste mesmo repositório, sem servidor. Mas duas coisas precisam ser resolvidas antes:
+
+1. **Onde os números ficam.** Enquanto a aba com os números estiver "publicada na web", eles são públicos. Resolva a publicação como descrito no Passo 4 antes de coletar números de mais gente.
+2. **O token do bot** não pode ficar no código — vai em *Settings → Secrets and variables → Actions* do repositório.
+
+A página, por enquanto, só convida: tem um bloco "📲 Avisos no Telegram" no rodapé apontando pro formulário.
 
 ---
 

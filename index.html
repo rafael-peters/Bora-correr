@@ -16,10 +16,18 @@
        - Observações     (parágrafo, opcional)
      Em "Respostas", clique no ícone da planilha pra criar a Planilha Google.
 
+     As perguntas de Telegram (avisos + número), se existirem, são IGNORADAS
+     de propósito: dado de contato nunca vai pra tela.
+
   2) PUBLICAR A PLANILHA: na planilha de respostas →
        Arquivo → Compartilhar → Publicar na web →
        escolha a ABA de respostas (não "Documento inteiro") e o formato
        "Valores separados por vírgula (.csv)" → Publicar → copie o link.
+
+     ATENÇÃO: publicar deixa a ABA INTEIRA legível pra quem tiver o link, e o
+     link fica no código-fonte desta página. Se o Form coleta e-mail ou
+     telefone, publique uma aba separada só com as colunas da corrida —
+     o passo a passo está no README.md.
 
   3) CONFIG: cole o link copiado em URL_PLANILHA_CSV (na seção CONFIG, mais
      abaixo no código) e o link do Form em URL_FORMULARIO. Pronto: a página
@@ -307,6 +315,14 @@ details.passadas summary::before{ content:'▸'; transition:transform .15s; }
 details.passadas[open] summary::before{ transform:rotate(90deg); }
 details.passadas .card{ opacity:.62; margin-top:10px; }
 
+.telegram{
+  margin-top:30px; padding:15px 17px;
+  background:var(--peito); border:1.5px solid var(--linha); border-radius:12px;
+}
+.telegram .eyebrow{ display:block; margin-bottom:5px; }
+.telegram p{ font-size:14px; color:var(--guia); }
+.telegram a{ color:var(--sinal); font-weight:700; }
+
 footer.rodape{
   margin-top:44px; padding-top:16px; border-top:2px solid var(--asfalto);
   font-size:12.5px; color:var(--guia);
@@ -380,6 +396,15 @@ footer.rodape{
     <div id="listaPassadas"></div>
   </details>
 
+  <!-- Convite pros avisos no Telegram — quem escolhe as opções é o próprio
+       formulário; a página só aponta o caminho. -->
+  <aside class="telegram">
+    <span class="eyebrow">📲 Avisos no Telegram</span>
+    <p>Quer ser avisado quando entrar corrida nova, quando o prazo de inscrição
+       estiver fechando e na véspera da prova? Marque as opções no
+       <a id="linkTelegram" href="#" target="_blank" rel="noopener">formulário</a>.</p>
+  </aside>
+
   <footer class="rodape">
     <span>Atualiza sozinho a partir da planilha do grupo</span>
     <span id="carimbo"></span>
@@ -411,7 +436,11 @@ const CONFIG = {
   // Cole aqui o link da planilha publicada como CSV (passo 2 do topo do arquivo).
   // Ele parece com: https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv
   // Enquanto estiver vazio (''), a página usa os dados de exemplo abaixo.
-  URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?output=csv',
+  // O "&range=C:I" limita a leitura às colunas da corrida (nome → data limite),
+  // deixando de fora carimbo, e-mail e os campos de Telegram. Se um dia você
+  // acrescentar perguntas SOBRE A CORRIDA no Form, elas entram depois das de
+  // Telegram — aí amplie o range (ex.: C:I vira C:K) ou o campo novo não aparece.
+  URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?output=csv&range=C:I',
 
   // Cole aqui o link do Google Form de "adicionar corrida" (botão flutuante).
   URL_FORMULARIO: 'https://forms.gle/ZihXrcrqYLvrTrW17'
@@ -553,6 +582,9 @@ function mapearColunas(cabecalhos){
     const n = normalizar(h);
     if(n.includes('carimbo') || n.includes('timestamp')) return;   // coluna automática do Forms
     if(n.includes('e-mail') || n.includes('email')) return;        // idem, quando o Form coleta e-mail
+    // Dado de contato nunca vai pra tela, aconteça o que acontecer com a ordem
+    // das perguntas do Form. É a segunda tranca: a primeira é o range da URL.
+    if(/telegram|whatsapp|telefone|celular|contato/.test(n)) return;
     // ATENÇÃO à ordem: o prazo é testado ANTES de "data" e de "link" porque um
     // cabeçalho como "Data limite para inscrições" casa com os três. Se ficasse
     // depois, a data-limite poderia ser confundida com a data da prova.
@@ -847,6 +879,14 @@ async function iniciar(){
     if(CONFIG.URL_FORMULARIO) window.open(CONFIG.URL_FORMULARIO, '_blank');
     else document.getElementById('modalFundo').classList.add('aberto');
   };
+  // Link "formulário" do bloco de Telegram — mesmo destino do botão flutuante
+  const linkTg = document.getElementById('linkTelegram');
+  if(CONFIG.URL_FORMULARIO) linkTg.href = CONFIG.URL_FORMULARIO;
+  else linkTg.onclick = e => {
+    e.preventDefault();
+    document.getElementById('modalFundo').classList.add('aberto');
+  };
+
   document.getElementById('fecharModal').onclick = () =>
     document.getElementById('modalFundo').classList.remove('aberto');
   document.getElementById('modalFundo').onclick = e => {
