@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!-- ============================================================================
+  BORA CORRER — calendário de corridas do grupo
+  ----------------------------------------------------------------------------
+  COMO COLOCAR PRA FUNCIONAR (resumo — detalhes na conversa com o Claude):
+
+  1) GOOGLE FORMS: crie um formulário com as perguntas:
+       - Nome da prova   (resposta curta)
+       - Data            (tipo "Data")
+       - Cidade          (resposta curta)
+       - Distâncias      (resposta curta — ex.: "5k e 10k")
+       - Link de inscrição (resposta curta, opcional)
+       - Observações     (parágrafo, opcional)
+     Em "Respostas", clique no ícone da planilha pra criar a Planilha Google.
+
+  2) PUBLICAR A PLANILHA: na planilha de respostas →
+       Arquivo → Compartilhar → Publicar na web →
+       escolha a ABA de respostas (não "Documento inteiro") e o formato
+       "Valores separados por vírgula (.csv)" → Publicar → copie o link.
+
+  3) CONFIG: cole o link copiado em URL_PLANILHA_CSV (na seção CONFIG, mais
+     abaixo no código) e o link do Form em URL_FORMULARIO. Pronto: a página
+     passa a se atualizar sozinha a cada resposta nova no Form.
+
+  4) GITHUB PAGES (hospedagem grátis): crie um repositório público, envie
+     este arquivo com o nome "index.html", e em Settings → Pages ative
+     "Deploy from a branch" (main / root). O endereço fica
+     https://SEU-USUARIO.github.io/NOME-DO-REPO/
+
+  OBS: dentro do preview do Claude o navegador bloqueia o acesso à planilha
+  (limitação do sandbox). Aí a página mostra os DADOS DE EXEMPLO e avisa.
+  Publicada no GitHub Pages (ou aberta como arquivo no PC), funciona normal.
+============================================================================ -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bora Correr — calendário de provas</title>
+
+<!-- Fontes: Anton (números de peito), Archivo (texto), IBM Plex Mono (dados).
+     Se a internet falhar, os "fallbacks" do CSS assumem e nada quebra. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+/* ==========================================================================
+   1. TOKENS DE DESIGN — as cores e fontes ficam em variáveis CSS.
+      Pra mudar a cara da página inteira, basta mexer aqui.
+   ========================================================================== */
+:root{
+  --asfalto:#23262B;      /* quase-preto: textos e blocos de data           */
+  --concreto:#F0F1EC;     /* fundo da página (cinza-concreto claro)        */
+  --peito:#FFFFFF;        /* branco dos "números de peito" (cards)         */
+  --sinal:#FF4E1E;        /* laranja de sinalização: destaques e botões    */
+  --chip:#FFD435;         /* amarelo do chip de cronometragem: badge FDS   */
+  --guia:#757A83;         /* cinza pra textos secundários                  */
+  --linha:#DADCD4;        /* bordas suaves                                 */
+
+  --f-display:'Anton', 'Arial Narrow', Impact, sans-serif;
+  --f-corpo:'Archivo', system-ui, -apple-system, sans-serif;
+  --f-mono:'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+}
+
+*{ margin:0; padding:0; box-sizing:border-box; }
+
+body{
+  background:var(--concreto);
+  color:var(--asfalto);
+  font-family:var(--f-corpo);
+  font-size:16px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* Container central: pensado pra celular, mas bonito no desktop também */
+.pagina{ max-width:680px; margin:0 auto; padding:28px 18px 120px; }
+
+/* Rótulos em mono maiúsculo — o "carimbo de cronometragem" da página */
+.eyebrow{
+  font-family:var(--f-mono); font-size:11px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--guia);
+}
+
+/* ==========================================================================
+   2. CABEÇALHO
+   ========================================================================== */
+header.topo{ margin-bottom:22px; }
+.topo h1{
+  font-family:var(--f-display); font-size:clamp(44px, 11vw, 64px);
+  line-height:.95; text-transform:uppercase; letter-spacing:.01em;
+}
+.topo h1 .ponto{ color:var(--sinal); }
+.topo .sub{ margin-top:6px; color:var(--guia); font-size:14.5px; }
+
+/* Aviso "dados de exemplo" / erro de carregamento */
+.aviso{
+  display:none; margin-top:12px; padding:8px 12px; border-radius:8px;
+  font-size:13px; background:#fff; border:1.5px dashed var(--guia);
+  color:var(--asfalto);
+}
+.aviso.visivel{ display:block; }
+
+/* ==========================================================================
+   3. HERO — a próxima largada, no formato de um número de peito de corrida
+   ========================================================================== */
+.hero{ margin:26px 0 30px; }
+.hero .eyebrow{ display:block; margin-bottom:10px; color:var(--asfalto); }
+
+.bib{
+  position:relative; background:var(--peito);
+  border:2.5px solid var(--asfalto); border-radius:14px;
+  box-shadow:6px 6px 0 var(--asfalto);
+  padding:26px 22px 22px; overflow:hidden;
+}
+/* Os dois "furinhos de alfinete" no topo do peito */
+.bib::before,.bib::after{
+  content:''; position:absolute; top:12px; width:13px; height:13px;
+  border-radius:50%; background:var(--concreto);
+  border:2px solid var(--asfalto);
+}
+.bib::before{ left:14px; } .bib::after{ right:14px; }
+
+.bib .faixa{ /* faixa laranja no rodapé do peito, como nos peitos reais */
+  position:absolute; left:0; right:0; bottom:0; height:9px;
+  background:var(--sinal);
+}
+.bib-contagem{ text-align:center; }
+.bib-contagem .rotulo{
+  font-family:var(--f-mono); font-size:12px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase;
+}
+.bib-contagem .numero{
+  font-family:var(--f-display); font-size:clamp(88px, 26vw, 130px);
+  line-height:1; letter-spacing:.02em; color:var(--sinal);
+}
+.bib-info{ text-align:center; margin-top:10px; padding-bottom:12px; }
+.bib-info .nome{
+  font-family:var(--f-display); font-size:clamp(22px, 6vw, 30px);
+  text-transform:uppercase; line-height:1.1;
+}
+.bib-info .meta{ margin-top:6px; color:var(--guia); font-size:14px; }
+.bib-info .meta b{ color:var(--asfalto); font-weight:600; }
+.bib-acao{ text-align:center; margin-top:14px; padding-bottom:8px; }
+
+/* ==========================================================================
+   4. BOTÕES E CHIPS
+   ========================================================================== */
+.btn{
+  display:inline-block; font-family:var(--f-corpo); font-weight:700;
+  font-size:14px; padding:10px 18px; border-radius:999px;
+  border:2px solid var(--asfalto); background:var(--sinal); color:#fff;
+  text-decoration:none; cursor:pointer;
+  box-shadow:3px 3px 0 var(--asfalto);
+  transition:transform .12s, box-shadow .12s;
+}
+.btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--asfalto); }
+.btn:active{ transform:translate(2px,2px); box-shadow:1px 1px 0 var(--asfalto); }
+
+.filtros{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:8px; }
+.chip-filtro{
+  font-family:var(--f-mono); font-size:12.5px; font-weight:600;
+  padding:6px 13px; border-radius:999px; cursor:pointer;
+  background:var(--peito); border:1.5px solid var(--asfalto);
+  transition:background .12s, color .12s;
+}
+.chip-filtro[aria-pressed="true"]{ background:var(--asfalto); color:#fff; }
+
+.busca{
+  width:100%; margin:6px 0 20px; padding:11px 14px; font-size:15px;
+  font-family:var(--f-corpo); border:1.5px solid var(--linha);
+  border-radius:10px; background:var(--peito); color:var(--asfalto);
+}
+.busca:focus{ outline:2.5px solid var(--sinal); outline-offset:1px; border-color:transparent; }
+
+/* ==========================================================================
+   5. LISTA DE PROVAS — divisores por mês + cards com "placa de km"
+   ========================================================================== */
+.divisor-mes{
+  display:flex; align-items:center; gap:12px; margin:26px 0 12px;
+}
+.divisor-mes span{
+  font-family:var(--f-display); font-size:18px; text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.divisor-mes::after{ content:''; flex:1; height:2px; background:var(--asfalto); }
+
+.card{
+  display:flex; gap:14px; align-items:stretch;
+  background:var(--peito); border:1.5px solid var(--linha);
+  border-radius:12px; padding:14px; margin-bottom:10px;
+  box-shadow:0 1px 0 var(--linha);
+  transition:transform .12s, box-shadow .12s, outline-color .3s;
+  outline:3px solid transparent;
+}
+.card:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(35,38,43,.10); }
+.card.flash{ outline-color:var(--sinal); } /* usado quando se clica num dia do calendário */
+
+/* Bloco de data à esquerda, no estilo de uma placa de quilometragem */
+.km{
+  flex:0 0 62px; align-self:flex-start;
+  background:var(--asfalto); color:#fff; border-radius:9px;
+  text-align:center; padding:8px 4px 7px;
+}
+.km .dia{ font-family:var(--f-display); font-size:27px; line-height:1; }
+.km .sem{
+  font-family:var(--f-mono); font-size:10.5px; letter-spacing:.12em;
+  text-transform:uppercase; margin-top:3px; color:#cfd2d8;
+}
+.card.passada .km{ background:var(--guia); }
+
+.card-corpo{ flex:1; min-width:0; }
+.card-corpo .nome{ font-weight:700; font-size:16.5px; line-height:1.25; }
+.card-corpo .cidade{ color:var(--guia); font-size:13.5px; margin-top:2px; }
+.card-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; align-items:center; }
+.tag-dist{
+  font-family:var(--f-mono); font-size:11.5px; font-weight:600;
+  padding:2.5px 9px; border-radius:6px;
+  background:var(--concreto); border:1px solid var(--linha);
+}
+.tag-fds{ /* badge "neste fim de semana" — amarelo chip de cronometragem */
+  font-family:var(--f-mono); font-size:11px; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase;
+  padding:2.5px 9px; border-radius:6px;
+  background:var(--chip); border:1px solid var(--asfalto);
+}
+.card-rodape{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:10px; gap:10px;
+}
+.contagem{ font-size:13px; color:var(--guia); }
+.contagem b{ color:var(--sinal); font-weight:700; }
+.link-inscricao{
+  font-size:13.5px; font-weight:700; color:var(--sinal);
+  text-decoration:none; white-space:nowrap;
+}
+.link-inscricao:hover{ text-decoration:underline; }
+.obs{ font-size:13px; color:var(--guia); margin-top:6px; font-style:italic; }
+
+.vazio{ padding:26px 0; text-align:center; color:var(--guia); font-size:14.5px; }
+
+/* ==========================================================================
+   6. MINI CALENDÁRIO DO MÊS
+   ========================================================================== */
+.sec-calendario{ margin-top:34px; }
+.cal{
+  background:var(--peito); border:1.5px solid var(--linha);
+  border-radius:14px; padding:16px; margin-top:10px;
+}
+.cal-topo{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.cal-topo .mes{ font-family:var(--f-display); font-size:19px; text-transform:uppercase; }
+.cal-nav{
+  width:34px; height:34px; border-radius:8px; border:1.5px solid var(--asfalto);
+  background:var(--peito); font-size:16px; cursor:pointer; font-family:var(--f-corpo);
+}
+.cal-nav:hover{ background:var(--concreto); }
+.cal-grade{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-sem{
+  text-align:center; font-family:var(--f-mono); font-size:10.5px;
+  color:var(--guia); text-transform:uppercase; padding:4px 0;
+}
+.cal-dia{
+  position:relative; aspect-ratio:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; border-radius:9px;
+  font-size:13.5px; background:transparent; border:none;
+  font-family:var(--f-corpo); color:var(--asfalto);
+}
+.cal-dia.fora{ color:#c3c6bd; }
+.cal-dia.hoje{ outline:2px solid var(--asfalto); outline-offset:-2px; font-weight:700; }
+.cal-dia.tem-prova{ cursor:pointer; font-weight:700; background:var(--concreto); }
+.cal-dia.tem-prova:hover{ background:var(--chip); }
+.cal-dia .pontos{ display:flex; gap:2.5px; margin-top:2px; }
+.cal-dia .pt{ width:5px; height:5px; border-radius:50%; background:var(--sinal); }
+
+/* ==========================================================================
+   7. "JÁ ROLARAM" (recolhível) + RODAPÉ + BOTÃO FLUTUANTE
+   ========================================================================== */
+details.passadas{ margin-top:30px; }
+details.passadas summary{
+  cursor:pointer; font-family:var(--f-mono); font-size:13px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--guia);
+  list-style:none; display:flex; align-items:center; gap:8px;
+}
+details.passadas summary::before{ content:'▸'; transition:transform .15s; }
+details.passadas[open] summary::before{ transform:rotate(90deg); }
+details.passadas .card{ opacity:.62; margin-top:10px; }
+
+footer.rodape{
+  margin-top:44px; padding-top:16px; border-top:2px solid var(--asfalto);
+  font-size:12.5px; color:var(--guia);
+  display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;
+}
+
+.fab{ /* botão flutuante de "adicionar corrida" */
+  position:fixed; right:18px; bottom:18px; z-index:50;
+  font-size:15px; padding:13px 20px; border-radius:999px;
+}
+
+/* Modalzinho de instrução quando o link do Form ainda não foi configurado */
+.modal-fundo{
+  position:fixed; inset:0; background:rgba(35,38,43,.55);
+  display:none; align-items:center; justify-content:center; padding:20px; z-index:100;
+}
+.modal-fundo.aberto{ display:flex; }
+.modal{
+  background:var(--peito); border:2.5px solid var(--asfalto); border-radius:14px;
+  box-shadow:6px 6px 0 var(--asfalto); max-width:420px; padding:22px;
+}
+.modal h3{ font-family:var(--f-display); text-transform:uppercase; margin-bottom:8px; }
+.modal p{ font-size:14.5px; margin-bottom:10px; }
+.modal code{ font-family:var(--f-mono); font-size:12.5px; background:var(--concreto); padding:2px 6px; border-radius:5px; }
+
+/* ==========================================================================
+   8. ANIMAÇÃO DE ENTRADA (uma só, orquestrada) + acessibilidade de movimento
+   ========================================================================== */
+@keyframes subir{ from{ opacity:0; transform:translateY(14px);} to{ opacity:1; transform:none;} }
+.anima{ animation:subir .5s cubic-bezier(.2,.7,.2,1) both; }
+/* Quem pede menos movimento no sistema, recebe a página parada */
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; }
+}
+:focus-visible{ outline:2.5px solid var(--sinal); outline-offset:2px; }
+</style>
+</head>
+<body>
+<div class="pagina">
+
+  <!-- ============================ CABEÇALHO ============================ -->
+  <header class="topo anima">
+    <span class="eyebrow" id="contadorProvas">carregando…</span>
+    <h1 id="titulo">Bora Correr<span class="ponto">.</span></h1>
+    <p class="sub" id="subtitulo">O calendário de provas da nossa turma</p>
+    <div class="aviso" id="aviso"></div>
+  </header>
+
+  <!-- ===================== HERO: PRÓXIMA LARGADA ======================= -->
+  <section class="hero anima" id="hero" style="animation-delay:.08s"></section>
+
+  <!-- ========================= FILTROS + BUSCA ========================= -->
+  <section class="anima" style="animation-delay:.16s">
+    <div class="filtros" id="filtros"></div>
+    <input class="busca" id="busca" type="search"
+           placeholder="Buscar por nome ou cidade…" aria-label="Buscar prova">
+  </section>
+
+  <!-- ========================= LISTA DE PROVAS ========================= -->
+  <main id="lista" class="anima" style="animation-delay:.24s"></main>
+
+  <!-- ========================= MINI CALENDÁRIO ========================= -->
+  <section class="sec-calendario anima" style="animation-delay:.3s">
+    <span class="eyebrow">Visão do mês</span>
+    <div class="cal" id="calendario"></div>
+  </section>
+
+  <!-- ========================== JÁ ROLARAM ============================= -->
+  <details class="passadas" id="secPassadas" style="display:none">
+    <summary id="tituloPassadas"></summary>
+    <div id="listaPassadas"></div>
+  </details>
+
+  <footer class="rodape">
+    <span>Atualiza sozinho a partir da planilha do grupo</span>
+    <span id="carimbo"></span>
+  </footer>
+</div>
+
+<!-- Botão flutuante: abre o Google Form de cadastro de prova -->
+<button class="btn fab" id="btnAdicionar">+ Adicionar corrida</button>
+
+<!-- Modal de instrução (aparece só se o link do Form ainda não foi colado) -->
+<div class="modal-fundo" id="modalFundo">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Configurar formulário">
+    <h3>Quase lá!</h3>
+    <p>Este botão vai abrir o Google Form de "cadastrar prova".</p>
+    <p>Pra ativar, cole o link do formulário em <code>URL_FORMULARIO</code>,
+       na seção CONFIG no topo do código desta página.</p>
+    <button class="btn" id="fecharModal">Entendi</button>
+  </div>
+</div>
+
+<script>
+/* ############################################################################
+   CONFIG — a ÚNICA parte que você precisa editar pra colocar no ar.
+   ############################################################################ */
+const CONFIG = {
+  TITULO: 'Bora Correr',                    // nome que aparece no topo
+  SUBTITULO: 'O calendário de provas da nossa turma',
+
+  // Cole aqui o link da planilha publicada como CSV (passo 2 do topo do arquivo).
+  // Ele parece com: https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv
+  // Enquanto estiver vazio (''), a página usa os dados de exemplo abaixo.
+  URL_PLANILHA_CSV: '',
+
+  // Cole aqui o link do Google Form de "adicionar corrida" (botão flutuante).
+  URL_FORMULARIO: ''
+};
+
+/* ############################################################################
+   DADOS DE EXEMPLO — só pra você ver a cara da página funcionando.
+   Assim que a planilha for configurada acima, isto aqui é ignorado.
+   ############################################################################ */
+const DADOS_EXEMPLO = [
+  { nome:'Rústica de Igrejinha',            data:'09/08/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'Largada às 8h na praça central' },
+  { nome:'Night Run POA',                   data:'22/08/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 10k',  link:'https://example.com', obs:'' },
+  { nome:'Meia Maratona de Porto Alegre',   data:'13/09/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 21k',  link:'https://example.com', obs:'' },
+  { nome:'Circuito das Hortênsias',         data:'04/10/2026', cidade:'Gramado/RS',         distancias:'8k e 16k',  link:'https://example.com', obs:'Subida braba no km 6, tá avisado' },
+  { nome:'Corrida da Oktoberfest',          data:'18/10/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'' },
+  { nome:'Corrida da Colônia',              data:'08/11/2026', cidade:'Nova Petrópolis/RS', distancias:'7k e 14k',  link:'',                    obs:'' },
+  { nome:'São Silvestre',                   data:'31/12/2026', cidade:'São Paulo/SP',       distancias:'15k',       link:'https://example.com', obs:'Quem topa fechar o ano lá?' },
+  { nome:'Rústica de Três Coroas',          data:'12/07/2026', cidade:'Três Coroas/RS',     distancias:'6k',        link:'',                    obs:'' }
+];
+
+/* ############################################################################
+   UTILITÁRIOS DE DATA E TEXTO
+   ############################################################################ */
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho',
+               'agosto','setembro','outubro','novembro','dezembro'];
+const MESES_ABREV = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const SEMANA_ABREV = ['dom','seg','ter','qua','qui','sex','sáb'];
+
+// Remove acentos e deixa minúsculo — usamos pra comparar textos com segurança
+function normalizar(txt){
+  return (txt || '').toString().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+// Protege contra HTML digitado na planilha (segurança básica de página web)
+function esc(txt){
+  return (txt || '').toString().replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Converte "09/08/2026" ou "2026-08-09" num objeto Date (meia-noite local).
+// Devolve null se não entender — a prova fica de fora em vez de quebrar tudo.
+function parseData(txt){
+  if(!txt) return null;
+  txt = txt.toString().trim().split(' ')[0];        // ignora hora, se vier
+  let m = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);   // dd/mm/aaaa
+  if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+  m = txt.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);         // aaaa-mm-dd
+  if(m) return new Date(+m[1], +m[2]-1, +m[3]);
+  return null;
+}
+
+function hojeZerado(){ const h = new Date(); h.setHours(0,0,0,0); return h; }
+function diasAte(data){ return Math.round((data - hojeZerado()) / 86400000); }
+function chaveDia(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+
+// "Neste fim de semana" = a prova cai no sábado/domingo desta semana
+function ehEsteFimDeSemana(data){
+  const d = diasAte(data);
+  if(d < 0) return false;
+  const diaSem = data.getDay();                       // 0=dom, 6=sáb
+  const faltamPraDomingo = (7 - hojeZerado().getDay()) % 7;
+  return (diaSem === 0 || diaSem === 6) && d <= faltamPraDomingo;
+}
+
+// Frase de contagem regressiva do card
+function fraseContagem(dias){
+  if(dias === 0) return 'É <b>HOJE</b>!';
+  if(dias === 1) return 'É <b>amanhã</b>';
+  return 'Faltam <b>' + dias + ' dias</b>';
+}
+
+// "5k e 10k" / "5 km, 10 km" → ['5k','10k'] (vira as etiquetas e os filtros)
+function extrairDistancias(txt){
+  if(!txt) return [];
+  const achados = txt.toString().toLowerCase().match(/\d+[.,]?\d*\s*k(m)?/g) || [];
+  const lista = achados.map(t => t.replace(/[\s]/g,'').replace(/km$/,'k').replace(',','.'));
+  return [...new Set(lista)];                          // sem repetidos
+}
+
+/* ############################################################################
+   LEITURA DA PLANILHA (CSV)
+   ############################################################################ */
+
+// Leitor de CSV pequeno e caseiro: entende aspas e vírgulas dentro de campos.
+// (O CSV que o Google publica é bem-comportado, então isto dá conta.)
+function lerCSV(texto){
+  const linhas = []; let campo = '', linha = [], dentroAspas = false;
+  for(let i = 0; i < texto.length; i++){
+    const c = texto[i];
+    if(dentroAspas){
+      if(c === '"' && texto[i+1] === '"'){ campo += '"'; i++; }
+      else if(c === '"'){ dentroAspas = false; }
+      else campo += c;
+    } else {
+      if(c === '"') dentroAspas = true;
+      else if(c === ','){ linha.push(campo); campo = ''; }
+      else if(c === '\n' || c === '\r'){
+        if(c === '\r' && texto[i+1] === '\n') i++;
+        linha.push(campo); linhas.push(linha); campo = ''; linha = [];
+      }
+      else campo += c;
+    }
+  }
+  if(campo !== '' || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas.filter(l => l.some(cel => cel.trim() !== ''));
+}
+
+// Descobre qual coluna é qual pelo NOME do cabeçalho (tolerante a variações:
+// tanto faz "Nome da prova", "Prova" ou "nome"). Assim ninguém precisa
+// deixar a planilha num formato rígido.
+function mapearColunas(cabecalhos){
+  const idx = { nome:-1, data:-1, cidade:-1, distancias:-1, link:-1, obs:-1 };
+  cabecalhos.forEach((h, i) => {
+    const n = normalizar(h);
+    if(n.includes('carimbo') || n.includes('timestamp')) return;   // coluna automática do Forms
+    if(idx.nome  < 0 && (n.includes('nome')  || n.includes('prova')  || n.includes('corrida'))) idx.nome = i;
+    else if(idx.data  < 0 && n.includes('data')) idx.data = i;
+    else if(idx.cidade< 0 && (n.includes('cidade')|| n.includes('local'))) idx.cidade = i;
+    else if(idx.distancias < 0 && (n.includes('dist') || n.includes('percurso'))) idx.distancias = i;
+    else if(idx.link  < 0 && (n.includes('inscri')|| n.includes('link') || n.includes('site'))) idx.link = i;
+    else if(idx.obs   < 0 && n.includes('obs')) idx.obs = i;
+  });
+  return idx;
+}
+
+// Busca a planilha na internet. Se der qualquer erro (sem internet, link
+// errado, sandbox do preview…), cai nos dados de exemplo e avisa na tela.
+async function carregarDados(){
+  if(!CONFIG.URL_PLANILHA_CSV){
+    mostrarAviso('Mostrando <b>dados de exemplo</b> — configure a planilha no CONFIG pra usar os dados reais do grupo.');
+    return DADOS_EXEMPLO;
+  }
+  try{
+    const resp = await fetch(CONFIG.URL_PLANILHA_CSV, { cache:'no-store' });
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const linhas = lerCSV(await resp.text());
+    if(linhas.length < 2) throw new Error('planilha vazia');
+    const col = mapearColunas(linhas[0]);
+    return linhas.slice(1).map(l => ({
+      nome:       col.nome  >= 0 ? l[col.nome]  : '',
+      data:       col.data  >= 0 ? l[col.data]  : '',
+      cidade:     col.cidade>= 0 ? l[col.cidade]: '',
+      distancias: col.distancias >= 0 ? l[col.distancias] : '',
+      link:       col.link  >= 0 ? l[col.link]  : '',
+      obs:        col.obs   >= 0 ? l[col.obs]   : ''
+    }));
+  } catch(e){
+    mostrarAviso('Não consegui carregar a planilha agora (no preview do Claude isso é normal — publicada no GitHub Pages funciona). Mostrando dados de exemplo.');
+    return DADOS_EXEMPLO;
+  }
+}
+
+function mostrarAviso(html){
+  const el = document.getElementById('aviso');
+  el.innerHTML = html; el.classList.add('visivel');
+}
+
+/* ############################################################################
+   ESTADO DA PÁGINA — o que o usuário selecionou agora
+   ############################################################################ */
+let PROVAS = [];                       // todas as provas já preparadas
+let filtrosAtivos = new Set();         // distâncias marcadas nos chips
+let textoBusca = '';                   // o que foi digitado na busca
+let mesCalendario = hojeZerado();      // mês exibido no mini calendário
+
+/* ############################################################################
+   PREPARO DOS DADOS — transforma as linhas cruas em provas prontas pra tela
+   ############################################################################ */
+function prepararProvas(brutas){
+  return brutas
+    .map((p, i) => {
+      const dataObj = parseData(p.data);
+      if(!dataObj || !p.nome) return null;           // linha incompleta: pula
+      return {
+        id: 'prova-' + i,
+        nome: p.nome.toString().trim(),
+        cidade: (p.cidade || '').toString().trim(),
+        link: (p.link || '').toString().trim(),
+        obs: (p.obs || '').toString().trim(),
+        dataObj,
+        dias: diasAte(dataObj),
+        dists: extrairDistancias(p.distancias),
+        fds: ehEsteFimDeSemana(dataObj)
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.dataObj - b.dataObj);          // sempre em ordem de data
+}
+
+// Aplica busca + chips de distância sobre uma lista de provas
+function filtrar(provas){
+  return provas.filter(p => {
+    if(filtrosAtivos.size && !p.dists.some(d => filtrosAtivos.has(d))) return false;
+    if(textoBusca){
+      const alvo = normalizar(p.nome + ' ' + p.cidade);
+      if(!alvo.includes(normalizar(textoBusca))) return false;
+    }
+    return true;
+  });
+}
+
+/* ############################################################################
+   RENDERIZAÇÃO — cada função desenha um pedaço da página
+   ############################################################################ */
+
+// HTML de um card de prova (usado na lista futura e na de "já rolaram")
+function htmlCard(p, passada){
+  const tags =
+    p.dists.map(d => '<span class="tag-dist">' + esc(d) + '</span>').join('') +
+    (p.fds ? '<span class="tag-fds">neste fim de semana</span>' : '');
+  const rodape = passada ? '' :
+    '<div class="card-rodape">' +
+      '<span class="contagem">' + fraseContagem(p.dias) + '</span>' +
+      (p.link ? '<a class="link-inscricao" href="' + esc(p.link) + '" target="_blank" rel="noopener">Inscrições →</a>' : '') +
+    '</div>';
+  return (
+    '<article class="card' + (passada ? ' passada' : '') + '" id="' + p.id + '">' +
+      '<div class="km"><div class="dia">' + p.dataObj.getDate() + '</div>' +
+        '<div class="sem">' + SEMANA_ABREV[p.dataObj.getDay()] + '</div></div>' +
+      '<div class="card-corpo">' +
+        '<div class="nome">' + esc(p.nome) + '</div>' +
+        (p.cidade ? '<div class="cidade">📍 ' + esc(p.cidade) + '</div>' : '') +
+        (tags ? '<div class="card-tags">' + tags + '</div>' : '') +
+        (p.obs ? '<div class="obs">' + esc(p.obs) + '</div>' : '') +
+        rodape +
+      '</div>' +
+    '</article>'
+  );
+}
+
+// O peito de corrida com a próxima largada (não é afetado pelos filtros)
+function renderHero(futuras){
+  const el = document.getElementById('hero');
+  if(!futuras.length){ el.innerHTML = ''; return; }
+  const p = futuras[0];
+  const numero = p.dias === 0 ? 'HOJE' : String(p.dias).padStart(2, '0');
+  const rotulo = p.dias === 0 ? 'a largada é' : (p.dias === 1 ? 'falta' : 'faltam') +
+                 (p.dias === 1 ? ' 1 dia' : ' ' + p.dias + ' dias');
+  el.innerHTML =
+    '<span class="eyebrow">Próxima largada</span>' +
+    '<div class="bib">' +
+      '<div class="bib-contagem">' +
+        '<div class="rotulo">' + rotulo + '</div>' +
+        '<div class="numero">' + numero + '</div>' +
+      '</div>' +
+      '<div class="bib-info">' +
+        '<div class="nome">' + esc(p.nome) + '</div>' +
+        '<div class="meta">' + p.dataObj.getDate() + ' de ' + MESES[p.dataObj.getMonth()] +
+          (p.cidade ? ' · <b>' + esc(p.cidade) + '</b>' : '') +
+          (p.dists.length ? ' · ' + p.dists.join(' / ') : '') + '</div>' +
+      '</div>' +
+      (p.link ? '<div class="bib-acao"><a class="btn" href="' + esc(p.link) + '" target="_blank" rel="noopener">Quero correr essa</a></div>' : '') +
+      '<div class="faixa"></div>' +
+    '</div>';
+}
+
+// Chips de filtro por distância — criados a partir das distâncias que existem
+function renderFiltros(){
+  const todas = [...new Set(PROVAS.flatMap(p => p.dists))]
+    .sort((a, b) => parseFloat(a) - parseFloat(b));
+  const el = document.getElementById('filtros');
+  if(!todas.length){ el.innerHTML = ''; return; }
+  el.innerHTML = todas.map(d =>
+    '<button class="chip-filtro" data-dist="' + esc(d) + '" aria-pressed="' +
+    (filtrosAtivos.has(d) ? 'true' : 'false') + '">' + esc(d) + '</button>').join('');
+  // Clicar num chip liga/desliga aquele filtro e redesenha a lista
+  el.querySelectorAll('.chip-filtro').forEach(btn => {
+    btn.onclick = () => {
+      const d = btn.dataset.dist;
+      filtrosAtivos.has(d) ? filtrosAtivos.delete(d) : filtrosAtivos.add(d);
+      renderFiltros(); renderLista();
+    };
+  });
+}
+
+// Lista principal, agrupada por mês (os divisores "AGOSTO ——" vêm daqui)
+function renderLista(){
+  const futuras = filtrar(PROVAS.filter(p => p.dias >= 0));
+  const el = document.getElementById('lista');
+  if(!futuras.length){
+    el.innerHTML = '<div class="vazio">' +
+      (PROVAS.some(p => p.dias >= 0)
+        ? 'Nenhuma prova bate com esses filtros.'
+        : 'Nenhuma prova no radar — bora cadastrar a primeira? 👇') + '</div>';
+    return;
+  }
+  let html = '', mesAtual = '';
+  futuras.forEach(p => {
+    const rotuloMes = MESES[p.dataObj.getMonth()] +
+      (p.dataObj.getFullYear() !== hojeZerado().getFullYear() ? ' ' + p.dataObj.getFullYear() : '');
+    if(rotuloMes !== mesAtual){
+      mesAtual = rotuloMes;
+      html += '<div class="divisor-mes"><span>' + rotuloMes + '</span></div>';
+    }
+    html += htmlCard(p, false);
+  });
+  el.innerHTML = html;
+}
+
+// Seção recolhível com o que já passou
+function renderPassadas(){
+  const passadas = PROVAS.filter(p => p.dias < 0).reverse();  // mais recente primeiro
+  const sec = document.getElementById('secPassadas');
+  if(!passadas.length){ sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  document.getElementById('tituloPassadas').textContent =
+    'Já rolaram (' + passadas.length + ')';
+  document.getElementById('listaPassadas').innerHTML =
+    passadas.map(p => htmlCard(p, true)).join('');
+}
+
+// Mini calendário: pontos laranja nos dias com prova; clique leva ao card
+function renderCalendario(){
+  const ano = mesCalendario.getFullYear(), mes = mesCalendario.getMonth();
+  const porDia = {};                                   // "2026-8-9" → [provas]
+  PROVAS.forEach(p => (porDia[chaveDia(p.dataObj)] ||= []).push(p));
+
+  const primeiroDiaSem = new Date(ano, mes, 1).getDay();   // 0=domingo
+  const totalDias = new Date(ano, mes + 1, 0).getDate();
+  const hoje = hojeZerado();
+
+  let celulas = SEMANA_ABREV.map(s => '<div class="cal-sem">' + s[0] + '</div>').join('');
+  for(let i = 0; i < primeiroDiaSem; i++) celulas += '<div class="cal-dia fora"></div>';
+  for(let dia = 1; dia <= totalDias; dia++){
+    const d = new Date(ano, mes, dia);
+    const provasDoDia = porDia[chaveDia(d)] || [];
+    const classes = ['cal-dia'];
+    if(d.getTime() === hoje.getTime()) classes.push('hoje');
+    if(provasDoDia.length) classes.push('tem-prova');
+    const pontos = provasDoDia.length
+      ? '<span class="pontos">' + provasDoDia.slice(0, 3).map(() => '<span class="pt"></span>').join('') + '</span>'
+      : '';
+    celulas += '<button class="' + classes.join(' ') + '"' +
+      (provasDoDia.length ? ' data-alvo="' + provasDoDia[0].id + '" aria-label="Ver prova do dia ' + dia + '"' : ' disabled') +
+      '>' + dia + pontos + '</button>';
+  }
+
+  document.getElementById('calendario').innerHTML =
+    '<div class="cal-topo">' +
+      '<button class="cal-nav" id="calAnt" aria-label="Mês anterior">‹</button>' +
+      '<span class="mes">' + MESES[mes] + ' ' + ano + '</span>' +
+      '<button class="cal-nav" id="calProx" aria-label="Próximo mês">›</button>' +
+    '</div>' +
+    '<div class="cal-grade">' + celulas + '</div>';
+
+  document.getElementById('calAnt').onclick  = () => { mesCalendario = new Date(ano, mes - 1, 1); renderCalendario(); };
+  document.getElementById('calProx').onclick = () => { mesCalendario = new Date(ano, mes + 1, 1); renderCalendario(); };
+
+  // Clique num dia com prova → rola até o card e dá um "flash" laranja nele
+  document.querySelectorAll('.cal-dia[data-alvo]').forEach(btn => {
+    btn.onclick = () => {
+      const alvo = document.getElementById(btn.dataset.alvo);
+      if(!alvo) return;
+      const det = alvo.closest('details');             // se estiver em "já rolaram"…
+      if(det) det.open = true;                          // …abre a seção antes
+      alvo.scrollIntoView({ behavior:'smooth', block:'center' });
+      alvo.classList.add('flash');
+      setTimeout(() => alvo.classList.remove('flash'), 1600);
+    };
+  });
+}
+
+/* ############################################################################
+   INICIALIZAÇÃO — roda uma vez quando a página abre
+   ############################################################################ */
+async function iniciar(){
+  document.getElementById('titulo').innerHTML = esc(CONFIG.TITULO) + '<span class="ponto">.</span>';
+  document.getElementById('subtitulo').textContent = CONFIG.SUBTITULO;
+  document.title = CONFIG.TITULO + ' — calendário de provas';
+
+  PROVAS = prepararProvas(await carregarDados());
+
+  const futuras = PROVAS.filter(p => p.dias >= 0);
+  document.getElementById('contadorProvas').textContent =
+    futuras.length === 1 ? '1 prova no radar' : futuras.length + ' provas no radar';
+  document.getElementById('carimbo').textContent =
+    'visto em ' + new Date().toLocaleDateString('pt-BR');
+
+  renderHero(futuras);
+  renderFiltros();
+  renderLista();
+  renderPassadas();
+  renderCalendario();
+
+  // Busca: redesenha a lista a cada tecla digitada
+  document.getElementById('busca').addEventListener('input', e => {
+    textoBusca = e.target.value; renderLista();
+  });
+
+  // Botão flutuante: abre o Form — ou o modal explicativo, se não configurado
+  document.getElementById('btnAdicionar').onclick = () => {
+    if(CONFIG.URL_FORMULARIO) window.open(CONFIG.URL_FORMULARIO, '_blank');
+    else document.getElementById('modalFundo').classList.add('aberto');
+  };
+  document.getElementById('fecharModal').onclick = () =>
+    document.getElementById('modalFundo').classList.remove('aberto');
+  document.getElementById('modalFundo').onclick = e => {
+    if(e.target.id === 'modalFundo') e.target.classList.remove('aberto');
+  };
+}
+
+iniciar();
+</script>
+</body>
+</html>
