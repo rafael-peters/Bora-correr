@@ -436,11 +436,10 @@ const CONFIG = {
   // Cole aqui o link da planilha publicada como CSV (passo 2 do topo do arquivo).
   // Ele parece com: https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv
   // Enquanto estiver vazio (''), a página usa os dados de exemplo abaixo.
-  // O "&range=C:I" limita a leitura às colunas da corrida (nome → data limite),
-  // deixando de fora carimbo, e-mail e os campos de Telegram. Se um dia você
-  // acrescentar perguntas SOBRE A CORRIDA no Form, elas entram depois das de
-  // Telegram — aí amplie o range (ex.: C:I vira C:K) ou o campo novo não aparece.
-  URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?output=csv&range=C:I',
+  // Aponta pra ABA "Site" da planilha (gid=1901872318), que é uma cópia via
+  // fórmula contendo SÓ as colunas da corrida. A aba de respostas original,
+  // com e-mail e telefone, não deve ficar publicada — veja o Passo 4 do README.
+  URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?gid=1901872318&single=true&output=csv',
 
   // Cole aqui o link do Google Form de "adicionar corrida" (botão flutuante).
   URL_FORMULARIO: 'https://forms.gle/ZihXrcrqYLvrTrW17'

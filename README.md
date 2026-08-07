@@ -86,7 +86,13 @@ Guarde esse link (é o `URL_PLANILHA_CSV`).
 > =QUERY('Respostas ao formulário 1'!A:I; "select C,D,E,F,G,H,I"; 1)
 > ```
 >
-> Publique **essa** aba (e só ela) e use o link dela no `CONFIG`. Depois volte em *Arquivo → Compartilhar → Publicar na web* e **pare de publicar** a aba de respostas original. Se a sua planilha usar vírgula como separador de fórmula, troque os `;` por `,`.
+> Publique **essa** aba (e só ela) e use o link dela no `CONFIG`. Se a sua planilha usar vírgula como separador de fórmula, troque os `;` por `,`.
+>
+> ⚠️ **O passo que quase todo mundo esquece:** publicar a aba nova **não** despublica a antiga. As duas ficam no ar ao mesmo tempo, sob o mesmo endereço-base — muda só o `gid`. Enquanto a aba de respostas continuar publicada, os e-mails e telefones seguem acessíveis.
+>
+> Pra fechar de verdade: *Arquivo → Compartilhar → Publicar na web* → aba **Conteúdo publicado e configurações** → localize a aba de respostas na lista e **desmarque** ela (ou clique em *Parar de publicar* e publique de novo só a aba nova).
+>
+> Pra conferir se funcionou, abra o link do CSV **sem** o `&gid=...` no navegador. Se ainda aparecerem e-mails, a aba antiga continua publicada.
 
 ## ✅ Passo 5 — Colar os dois links no CONFIG
 
@@ -98,11 +104,16 @@ Dá pra editar direto no navegador, sem instalar nada:
 4. Cole os links **entre as aspas**, sem apagar as vírgulas do fim das linhas:
 
    ```js
-   URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv&range=C:I',
+   URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=1901872318&single=true&output=csv',
    URL_FORMULARIO: 'https://forms.gle/xxxxxxxx'
    ```
 
-   O `&range=C:I` no fim do link da planilha faz a página ler só as colunas da corrida (da coluna C até a I), pulando carimbo, e-mail e Telegram. Se um dia você acrescentar uma pergunta **sobre a corrida** no Form, ela entra *depois* das de Telegram — então amplie o range (ex.: `C:I` vira `C:K`), senão o campo novo não aparece.
+   > 💡 **Se o link que o Google te deu tem `pubhtml`**, ele é a versão em página web, não CSV — a página não consegue ler. Converta assim: troque `pubhtml?` por `pub?` e acrescente `&output=csv` no fim.
+   >
+   > | | |
+   > |---|---|
+   > | Veio assim | `.../pubhtml?gid=1901872318&single=true` |
+   > | Use assim | `.../pub?gid=1901872318&single=true&output=csv` |
 
 5. **Commit changes** → aguarde ~1 minuto → recarregue a página com `Ctrl+Shift+R` (recarga forçada, ignorando o cache)
 
