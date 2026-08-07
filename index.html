@@ -321,7 +321,10 @@ details.passadas .card{ opacity:.62; margin-top:10px; }
 }
 .telegram .eyebrow{ display:block; margin-bottom:5px; }
 .telegram p{ font-size:14px; color:var(--guia); }
-.telegram a{ color:var(--sinal); font-weight:700; }
+.telegram .btn{ margin-top:12px; }
+/* Trava o esconde-esconde: se um dia .telegram ganhar um display próprio,
+   ele venceria o [hidden] do navegador e o bloco vazaria pra tela. */
+.telegram[hidden]{ display:none; }
 
 footer.rodape{
   margin-top:44px; padding-top:16px; border-top:2px solid var(--asfalto);
@@ -396,13 +399,13 @@ footer.rodape{
     <div id="listaPassadas"></div>
   </details>
 
-  <!-- Convite pros avisos no Telegram — quem escolhe as opções é o próprio
-       formulário; a página só aponta o caminho. -->
-  <aside class="telegram">
+  <!-- Convite pro grupo do Telegram, onde o bot posta os avisos.
+       Fica escondido enquanto URL_GRUPO_TELEGRAM estiver vazio no CONFIG. -->
+  <aside class="telegram" id="blocoTelegram" hidden>
     <span class="eyebrow">📲 Avisos no Telegram</span>
-    <p>Quer ser avisado quando entrar corrida nova, quando o prazo de inscrição
-       estiver fechando e na véspera da prova? Marque as opções no
-       <a id="linkTelegram" href="#" target="_blank" rel="noopener">formulário</a>.</p>
+    <p>No grupo, um bot avisa quando entra corrida nova, quando as inscrições
+       estão fechando e na véspera da prova.</p>
+    <a class="btn" id="linkGrupo" target="_blank" rel="noopener">Entrar no grupo</a>
   </aside>
 
   <footer class="rodape">
@@ -442,7 +445,13 @@ const CONFIG = {
   URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?gid=1901872318&single=true&output=csv',
 
   // Cole aqui o link do Google Form de "adicionar corrida" (botão flutuante).
-  URL_FORMULARIO: 'https://forms.gle/ZihXrcrqYLvrTrW17'
+  URL_FORMULARIO: 'https://forms.gle/ZihXrcrqYLvrTrW17',
+
+  // Link de convite do grupo do Telegram (onde o bot posta os avisos).
+  // No Telegram: toque no nome do grupo → Convidar via link → copiar.
+  // Fica parecido com 'https://t.me/+AbCdEf123' ou 'https://t.me/nomedogrupo'.
+  // Enquanto estiver vazio (''), o bloco de Telegram simplesmente não aparece.
+  URL_GRUPO_TELEGRAM: ''
 };
 
 /* ############################################################################
@@ -878,13 +887,11 @@ async function iniciar(){
     if(CONFIG.URL_FORMULARIO) window.open(CONFIG.URL_FORMULARIO, '_blank');
     else document.getElementById('modalFundo').classList.add('aberto');
   };
-  // Link "formulário" do bloco de Telegram — mesmo destino do botão flutuante
-  const linkTg = document.getElementById('linkTelegram');
-  if(CONFIG.URL_FORMULARIO) linkTg.href = CONFIG.URL_FORMULARIO;
-  else linkTg.onclick = e => {
-    e.preventDefault();
-    document.getElementById('modalFundo').classList.add('aberto');
-  };
+  // Bloco do Telegram: só entra em cena se o link do grupo estiver no CONFIG
+  if(CONFIG.URL_GRUPO_TELEGRAM){
+    document.getElementById('linkGrupo').href = CONFIG.URL_GRUPO_TELEGRAM;
+    document.getElementById('blocoTelegram').hidden = false;
+  }
 
   document.getElementById('fecharModal').onclick = () =>
     document.getElementById('modalFundo').classList.remove('aberto');

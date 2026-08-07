@@ -144,6 +144,7 @@ O prazo também aparece no destaque da próxima largada, no topo da página.
 ## 🎨 Personalização
 
 - **Nome e subtítulo da página:** em `CONFIG`, campos `TITULO` e `SUBTITULO`
+- **Botão "Entrar no grupo" do Telegram:** em `CONFIG`, campo `URL_GRUPO_TELEGRAM`. Enquanto estiver vazio, o bloco inteiro não aparece na página — nada de botão quebrado
 - **Cores:** no topo do CSS, na seção `:root` — mude `--sinal` (laranja dos destaques), `--chip` (amarelo do selo "neste fim de semana") etc. e a página inteira acompanha
 - **Dados de exemplo:** ficam em `DADOS_EXEMPLO`; são ignorados assim que a planilha é configurada
 
@@ -210,6 +211,15 @@ Na aba **Actions** do repositório, escolha **Avisos no Telegram → Run workflo
 Comece pelo `teste`. Se a mensagem chegar no grupo, está tudo certo. Se o log disser `FALHOU`, o erro do Telegram aparece logo acima — `chat not found` é `chat_id` errado, `Unauthorized` é token errado.
 
 A **primeira execução de verdade** não envia nada de propósito: ela marca as corridas que já estão na planilha como "conhecidas" e cria o `bot/estado.json`. Sem isso, o grupo levaria uma enxurrada anunciando o calendário inteiro de uma vez. Dali em diante, só o que for novidade vira mensagem.
+
+### Passo 5 — Botar o convite do grupo na página
+
+Pra galera achar o grupo, a página mostra um bloco "📲 Avisos no Telegram" com um botão **Entrar no grupo**. Ele só aparece depois que você preencher o link:
+
+1. No Telegram, toque no **nome do grupo** → **Convidar via link** → copiar
+2. Cole em `URL_GRUPO_TELEGRAM`, no `CONFIG` do `index.html`
+
+Fica parecido com `https://t.me/+AbCdEf123` (grupo privado) ou `https://t.me/nomedogrupo` (grupo público).
 
 ### Como funciona por dentro
 
