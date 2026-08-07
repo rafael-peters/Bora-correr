@@ -121,6 +121,8 @@ Se tudo deu certo: o aviso de "dados de exemplo" some, as provas reais aparecem,
 
 ## ✅ Passo 6 — Espalhar pro grupo
 
+> 📣 Tem mensagens prontas pra copiar e colar em [`divulgacao/`](divulgacao/) — uma longa pra WhatsApp, uma curta pra story, e uma linha pra bio.
+
 - Fixe o link da página no grupo do WhatsApp (e o link do Form como mensagem fixada também, se quiserem)
 - Coloque na bio do Instagram
 - Teste: cadastre uma prova pelo Form e recarregue a página — ela deve aparecer no card do mês certo
