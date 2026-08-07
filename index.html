@@ -4,13 +4,14 @@
 <!-- ============================================================================
   BORA CORRER — calendário de corridas do grupo
   ----------------------------------------------------------------------------
-  COMO COLOCAR PRA FUNCIONAR (resumo — detalhes na conversa com o Claude):
+  COMO COLOCAR PRA FUNCIONAR (resumo — passo a passo completo no README.md):
 
   1) GOOGLE FORMS: crie um formulário com as perguntas:
        - Nome da prova   (resposta curta)
        - Data            (tipo "Data")
        - Cidade          (resposta curta)
        - Distâncias      (resposta curta — ex.: "5k e 10k")
+       - Data limite para inscrições (tipo "Data", opcional)
        - Link de inscrição (resposta curta, opcional)
        - Observações     (parágrafo, opcional)
      Em "Respostas", clique no ícone da planilha pra criar a Planilha Google.
@@ -29,9 +30,9 @@
      "Deploy from a branch" (main / root). O endereço fica
      https://SEU-USUARIO.github.io/NOME-DO-REPO/
 
-  OBS: dentro do preview do Claude o navegador bloqueia o acesso à planilha
-  (limitação do sandbox). Aí a página mostra os DADOS DE EXEMPLO e avisa.
-  Publicada no GitHub Pages (ou aberta como arquivo no PC), funciona normal.
+  OBS: se a planilha não puder ser lida (sem internet, link errado, ou o
+  Google ainda republicando o CSV), a página mostra os DADOS DE EXEMPLO e
+  avisa no topo — em vez de ficar em branco.
 ============================================================================ -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -134,6 +135,11 @@ header.topo{ margin-bottom:22px; }
   font-family:var(--f-display); font-size:clamp(88px, 26vw, 130px);
   line-height:1; letter-spacing:.02em; color:var(--sinal);
 }
+.bib-contagem .unidade{
+  font-family:var(--f-mono); font-size:12px; font-weight:600;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--guia);
+  margin-top:-4px;
+}
 .bib-info{ text-align:center; margin-top:10px; padding-bottom:12px; }
 .bib-info .nome{
   font-family:var(--f-display); font-size:clamp(22px, 6vw, 30px);
@@ -224,6 +230,22 @@ header.topo{ margin-bottom:22px; }
   padding:2.5px 9px; border-radius:6px;
   background:var(--chip); border:1px solid var(--asfalto);
 }
+/* Prazo de inscrição: discreto quando tem folga, alarmante quando aperta */
+.card-prazo{ margin-top:7px; }
+.prazo{
+  display:inline-block; font-family:var(--f-mono); font-size:11.5px; font-weight:600;
+  padding:3px 9px; border-radius:6px; color:var(--guia);
+  background:var(--concreto); border:1px solid var(--linha);
+}
+.prazo.urgente{
+  color:#fff; background:var(--sinal); border-color:var(--asfalto);
+}
+.prazo.encerrado{
+  color:var(--guia); background:transparent;
+  border:1px dashed var(--guia); text-decoration:line-through;
+}
+.bib-prazo{ margin-top:9px; }
+
 .card-rodape{
   display:flex; justify-content:space-between; align-items:center;
   margin-top:10px; gap:10px;
@@ -389,10 +411,10 @@ const CONFIG = {
   // Cole aqui o link da planilha publicada como CSV (passo 2 do topo do arquivo).
   // Ele parece com: https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv
   // Enquanto estiver vazio (''), a página usa os dados de exemplo abaixo.
-  URL_PLANILHA_CSV: '',
+  URL_PLANILHA_CSV: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5u_1LAE6GI5ORSnD00CyWxufgf5SaAD7fdT000iFkbTIJKYQIReqWOPuetNJJni99hE3fHfUNcZiT/pub?output=csv',
 
   // Cole aqui o link do Google Form de "adicionar corrida" (botão flutuante).
-  URL_FORMULARIO: ''
+  URL_FORMULARIO: 'https://forms.gle/ZihXrcrqYLvrTrW17'
 };
 
 /* ############################################################################
@@ -400,14 +422,14 @@ const CONFIG = {
    Assim que a planilha for configurada acima, isto aqui é ignorado.
    ############################################################################ */
 const DADOS_EXEMPLO = [
-  { nome:'Rústica de Igrejinha',            data:'09/08/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'Largada às 8h na praça central' },
-  { nome:'Night Run POA',                   data:'22/08/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 10k',  link:'https://example.com', obs:'' },
-  { nome:'Meia Maratona de Porto Alegre',   data:'13/09/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 21k',  link:'https://example.com', obs:'' },
-  { nome:'Circuito das Hortênsias',         data:'04/10/2026', cidade:'Gramado/RS',         distancias:'8k e 16k',  link:'https://example.com', obs:'Subida braba no km 6, tá avisado' },
-  { nome:'Corrida da Oktoberfest',          data:'18/10/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'' },
-  { nome:'Corrida da Colônia',              data:'08/11/2026', cidade:'Nova Petrópolis/RS', distancias:'7k e 14k',  link:'',                    obs:'' },
-  { nome:'São Silvestre',                   data:'31/12/2026', cidade:'São Paulo/SP',       distancias:'15k',       link:'https://example.com', obs:'Quem topa fechar o ano lá?' },
-  { nome:'Rústica de Três Coroas',          data:'12/07/2026', cidade:'Três Coroas/RS',     distancias:'6k',        link:'',                    obs:'' }
+  { nome:'Rústica de Igrejinha',            data:'09/08/2026', prazo:'08/08/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'Largada às 8h na praça central' },
+  { nome:'Night Run POA',                   data:'22/08/2026', prazo:'15/08/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 10k',  link:'https://example.com', obs:'' },
+  { nome:'Meia Maratona de Porto Alegre',   data:'13/09/2026', prazo:'30/08/2026', cidade:'Porto Alegre/RS',    distancias:'5k e 21k',  link:'https://example.com', obs:'' },
+  { nome:'Circuito das Hortênsias',         data:'04/10/2026', prazo:'01/08/2026', cidade:'Gramado/RS',         distancias:'8k e 16k',  link:'https://example.com', obs:'Subida braba no km 6, tá avisado' },
+  { nome:'Corrida da Oktoberfest',          data:'18/10/2026', prazo:'10/10/2026', cidade:'Igrejinha/RS',       distancias:'5k e 10k',  link:'https://example.com', obs:'' },
+  { nome:'Corrida da Colônia',              data:'08/11/2026', prazo:'',           cidade:'Nova Petrópolis/RS', distancias:'7k e 14k',  link:'',                    obs:'' },
+  { nome:'São Silvestre',                   data:'31/12/2026', prazo:'15/12/2026', cidade:'São Paulo/SP',       distancias:'15k',       link:'https://example.com', obs:'Quem topa fechar o ano lá?' },
+  { nome:'Rústica de Três Coroas',          data:'12/07/2026', prazo:'05/07/2026', cidade:'Três Coroas/RS',     distancias:'6k',        link:'',                    obs:'' }
 ];
 
 /* ############################################################################
@@ -428,6 +450,18 @@ function normalizar(txt){
 function esc(txt){
   return (txt || '').toString().replace(/[&<>"']/g,
     c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Só deixa passar link de site de verdade. Quem preenche o formulário costuma
+// digitar só o domínio ("exemplo.com.br"), então completamos com https://.
+// Qualquer outra coisa (inclusive "javascript:...") vira link nenhum.
+function linkSeguro(txt){
+  const url = (txt || '').toString().trim();
+  if(!url) return '';
+  if(/^https?:\/\//i.test(url)) return url;
+  if(url.includes(':') || /\s/.test(url)) return '';   // outro esquema ou frase solta
+  if(!/^[\w-]+(\.[\w-]+)+/.test(url)) return '';       // não parece um domínio
+  return 'https://' + url;
 }
 
 // Converte "09/08/2026" ou "2026-08-09" num objeto Date (meia-noite local).
@@ -460,6 +494,18 @@ function fraseContagem(dias){
   if(dias === 0) return 'É <b>HOJE</b>!';
   if(dias === 1) return 'É <b>amanhã</b>';
   return 'Faltam <b>' + dias + ' dias</b>';
+}
+
+// Etiqueta do prazo de inscrição — quanto mais perto de fechar, mais gritante.
+// Sem prazo informado na planilha, não mostra nada (nem todo evento tem).
+function htmlPrazo(p){
+  if(p.diasPrazo === null) return '';
+  const dia = p.prazoObj.getDate() + '/' + MESES_ABREV[p.prazoObj.getMonth()];
+  if(p.diasPrazo < 0)   return '<span class="prazo encerrado">🔒 inscrições encerradas</span>';
+  if(p.diasPrazo === 0) return '<span class="prazo urgente">⏰ último dia pra se inscrever!</span>';
+  if(p.diasPrazo <= 7)  return '<span class="prazo urgente">⏰ inscrições até ' + dia + ' · ' +
+    (p.diasPrazo === 1 ? 'falta 1 dia' : 'faltam ' + p.diasPrazo + ' dias') + '</span>';
+  return '<span class="prazo">🗓 inscrições até ' + dia + '</span>';
 }
 
 // "5k e 10k" / "5 km, 10 km" → ['5k','10k'] (vira as etiquetas e os filtros)
@@ -502,11 +548,16 @@ function lerCSV(texto){
 // tanto faz "Nome da prova", "Prova" ou "nome"). Assim ninguém precisa
 // deixar a planilha num formato rígido.
 function mapearColunas(cabecalhos){
-  const idx = { nome:-1, data:-1, cidade:-1, distancias:-1, link:-1, obs:-1 };
+  const idx = { nome:-1, data:-1, cidade:-1, distancias:-1, link:-1, obs:-1, prazo:-1 };
   cabecalhos.forEach((h, i) => {
     const n = normalizar(h);
     if(n.includes('carimbo') || n.includes('timestamp')) return;   // coluna automática do Forms
-    if(idx.nome  < 0 && (n.includes('nome')  || n.includes('prova')  || n.includes('corrida'))) idx.nome = i;
+    if(n.includes('e-mail') || n.includes('email')) return;        // idem, quando o Form coleta e-mail
+    // ATENÇÃO à ordem: o prazo é testado ANTES de "data" e de "link" porque um
+    // cabeçalho como "Data limite para inscrições" casa com os três. Se ficasse
+    // depois, a data-limite poderia ser confundida com a data da prova.
+    if(idx.prazo < 0 && /limite|prazo|encerr|fecham|\bate\b/.test(n)) idx.prazo = i;
+    else if(idx.nome  < 0 && (n.includes('nome')  || n.includes('prova')  || n.includes('corrida'))) idx.nome = i;
     else if(idx.data  < 0 && n.includes('data')) idx.data = i;
     else if(idx.cidade< 0 && (n.includes('cidade')|| n.includes('local'))) idx.cidade = i;
     else if(idx.distancias < 0 && (n.includes('dist') || n.includes('percurso'))) idx.distancias = i;
@@ -535,10 +586,11 @@ async function carregarDados(){
       cidade:     col.cidade>= 0 ? l[col.cidade]: '',
       distancias: col.distancias >= 0 ? l[col.distancias] : '',
       link:       col.link  >= 0 ? l[col.link]  : '',
-      obs:        col.obs   >= 0 ? l[col.obs]   : ''
+      obs:        col.obs   >= 0 ? l[col.obs]   : '',
+      prazo:      col.prazo >= 0 ? l[col.prazo] : ''
     }));
   } catch(e){
-    mostrarAviso('Não consegui carregar a planilha agora (no preview do Claude isso é normal — publicada no GitHub Pages funciona). Mostrando dados de exemplo.');
+    mostrarAviso('Não consegui carregar a planilha agora — pode ser a internet ou o Google republicando os dados. Tente recarregar daqui a alguns minutos. Enquanto isso, seguem provas de exemplo.');
     return DADOS_EXEMPLO;
   }
 }
@@ -564,14 +616,17 @@ function prepararProvas(brutas){
     .map((p, i) => {
       const dataObj = parseData(p.data);
       if(!dataObj || !p.nome) return null;           // linha incompleta: pula
+      const prazoObj = parseData(p.prazo);           // null se em branco ou ilegível
       return {
         id: 'prova-' + i,
         nome: p.nome.toString().trim(),
         cidade: (p.cidade || '').toString().trim(),
-        link: (p.link || '').toString().trim(),
+        link: linkSeguro(p.link),
         obs: (p.obs || '').toString().trim(),
         dataObj,
         dias: diasAte(dataObj),
+        prazoObj,
+        diasPrazo: prazoObj ? diasAte(prazoObj) : null,   // null = sem prazo informado
         dists: extrairDistancias(p.distancias),
         fds: ehEsteFimDeSemana(dataObj)
       };
@@ -601,11 +656,14 @@ function htmlCard(p, passada){
   const tags =
     p.dists.map(d => '<span class="tag-dist">' + esc(d) + '</span>').join('') +
     (p.fds ? '<span class="tag-fds">neste fim de semana</span>' : '');
+  // Passado o prazo, o link de inscrição só confundiria — sai de cena.
+  const abertas = p.diasPrazo === null || p.diasPrazo >= 0;
   const rodape = passada ? '' :
     '<div class="card-rodape">' +
       '<span class="contagem">' + fraseContagem(p.dias) + '</span>' +
-      (p.link ? '<a class="link-inscricao" href="' + esc(p.link) + '" target="_blank" rel="noopener">Inscrições →</a>' : '') +
+      (p.link && abertas ? '<a class="link-inscricao" href="' + esc(p.link) + '" target="_blank" rel="noopener">Inscrições →</a>' : '') +
     '</div>';
+  const prazo = passada ? '' : htmlPrazo(p);
   return (
     '<article class="card' + (passada ? ' passada' : '') + '" id="' + p.id + '">' +
       '<div class="km"><div class="dia">' + p.dataObj.getDate() + '</div>' +
@@ -614,6 +672,7 @@ function htmlCard(p, passada){
         '<div class="nome">' + esc(p.nome) + '</div>' +
         (p.cidade ? '<div class="cidade">📍 ' + esc(p.cidade) + '</div>' : '') +
         (tags ? '<div class="card-tags">' + tags + '</div>' : '') +
+        (prazo ? '<div class="card-prazo">' + prazo + '</div>' : '') +
         (p.obs ? '<div class="obs">' + esc(p.obs) + '</div>' : '') +
         rodape +
       '</div>' +
@@ -626,23 +685,26 @@ function renderHero(futuras){
   const el = document.getElementById('hero');
   if(!futuras.length){ el.innerHTML = ''; return; }
   const p = futuras[0];
-  const numero = p.dias === 0 ? 'HOJE' : String(p.dias).padStart(2, '0');
-  const rotulo = p.dias === 0 ? 'a largada é' : (p.dias === 1 ? 'falta' : 'faltam') +
-                 (p.dias === 1 ? ' 1 dia' : ' ' + p.dias + ' dias');
+  const numero  = p.dias === 0 ? 'HOJE' : String(p.dias).padStart(2, '0');
+  const rotulo  = p.dias === 0 ? 'a largada é' : (p.dias === 1 ? 'falta' : 'faltam');
+  const unidade = p.dias === 0 ? '' : (p.dias === 1 ? 'dia' : 'dias');
   el.innerHTML =
     '<span class="eyebrow">Próxima largada</span>' +
     '<div class="bib">' +
       '<div class="bib-contagem">' +
         '<div class="rotulo">' + rotulo + '</div>' +
         '<div class="numero">' + numero + '</div>' +
+        (unidade ? '<div class="unidade">' + unidade + '</div>' : '') +
       '</div>' +
       '<div class="bib-info">' +
         '<div class="nome">' + esc(p.nome) + '</div>' +
         '<div class="meta">' + p.dataObj.getDate() + ' de ' + MESES[p.dataObj.getMonth()] +
           (p.cidade ? ' · <b>' + esc(p.cidade) + '</b>' : '') +
           (p.dists.length ? ' · ' + p.dists.join(' / ') : '') + '</div>' +
+        (htmlPrazo(p) ? '<div class="bib-prazo">' + htmlPrazo(p) + '</div>' : '') +
       '</div>' +
-      (p.link ? '<div class="bib-acao"><a class="btn" href="' + esc(p.link) + '" target="_blank" rel="noopener">Quero correr essa</a></div>' : '') +
+      (p.link && (p.diasPrazo === null || p.diasPrazo >= 0)
+        ? '<div class="bib-acao"><a class="btn" href="' + esc(p.link) + '" target="_blank" rel="noopener">Quero correr essa</a></div>' : '') +
       '<div class="faixa"></div>' +
     '</div>';
 }
