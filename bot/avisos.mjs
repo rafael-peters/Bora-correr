@@ -24,6 +24,7 @@ const TOKEN   = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const PAGINA  = process.env.PAGINA_URL || '';
 const SECO    = process.argv.includes('--dry-run');
+const TESTE   = process.argv.includes('--teste');
 
 /* ---------------------------------------------------------------------------
    1. DE ONDE VEM A PLANILHA
@@ -180,6 +181,23 @@ async function principal(){
   if(!SECO && (!TOKEN || !CHAT_ID)){
     console.error('Faltam os secrets TELEGRAM_BOT_TOKEN e/ou TELEGRAM_CHAT_ID.');
     process.exit(1);
+  }
+
+  // Modo teste: manda UMA mensagem no grupo e para. É o único jeito de saber
+  // se token e chat_id estão certos de verdade — o --dry-run nem chega a
+  // conversar com o Telegram, então não prova nada sobre a conexão.
+  if(TESTE){
+    console.log('Testando envio para o chat ' + (CHAT_ID || '(vazio!)') + '…');
+    const ok = await enviar(
+      '✅ <b>Bot do Bora Correr conectado</b>\n\n' +
+      'Se esta mensagem chegou no grupo, o token e o chat_id estão certos.\n' +
+      'A partir de agora eu aviso quando entrar corrida nova, quando as ' +
+      'inscrições estiverem fechando e na véspera da prova. 🏃'
+    );
+    console.log(ok
+      ? 'Enviado. Confira o grupo no Telegram.'
+      : 'FALHOU — veja o erro do Telegram acima.');
+    process.exit(ok ? 0 : 1);
   }
 
   const resp = await fetch(urlDaPlanilha(), { cache:'no-store' });

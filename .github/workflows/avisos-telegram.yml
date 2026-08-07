@@ -7,12 +7,20 @@ on:
     - cron: '0 12 * * *'
   workflow_dispatch:
     inputs:
-      dry_run:
-        description: 'Só mostrar o que seria enviado (não envia nada)'
-        type: boolean
-        default: true
+      modo:
+        description: 'O que fazer'
+        type: choice
+        default: teste
+        options:
+          # manda UMA mensagem no grupo só pra provar que token e chat_id
+          # estão certos. É o único modo que conversa com o Telegram sem
+          # depender de ter corrida nova na planilha.
+          - teste
+          # mostra no log o que seria postado, sem postar nada
+          - dry-run
+          # comportamento normal, igual ao do agendamento diário
+          - valendo
 
-# Necessário pro passo que commita bot/estado.json de volta
 permissions:
   contents: write
 
@@ -26,21 +34,27 @@ jobs:
   avisar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Enviar avisos
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           PAGINA_URL: https://rafael-peters.github.io/Bora-correr/
-        run: node bot/avisos.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+        # Sem "modo" (execução agendada), o case cai no *) e roda valendo.
+        run: |
+          case "${{ inputs.modo }}" in
+            teste)   node bot/avisos.mjs --teste   ;;
+            dry-run) node bot/avisos.mjs --dry-run ;;
+            *)       node bot/avisos.mjs           ;;
+          esac
 
       - name: Registrar o que já foi avisado
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ inputs.modo != 'teste' && inputs.modo != 'dry-run' }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
